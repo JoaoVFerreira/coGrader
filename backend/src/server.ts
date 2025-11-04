@@ -10,63 +10,53 @@ import { initializeFirebase } from './config/firebase';
 import { QueueService } from './services/queue.service';
 import { createJobsRouter } from './routes/jobs.routes';
 import { errorHandler, notFoundHandler } from './middlewares/error.middleware';
+import { getRoutes } from './utils/extract.route.paths';
+import { TIMEOUT } from './constants';
 
 const app = express();
 
-// Security Middleware
 app.use(helmet());
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// HTTP Request Logging with Winston
 app.use(expressWinston.logger({
   winstonInstance: logger,
   meta: true,
   msg: 'HTTP {{req.method}} {{req.url}}',
   expressFormat: true,
   colorize: false,
-  ignoreRoute: (req) => req.url === '/health', // Ignore health check logs
+  ignoreRoute: (req) => req.url === '/health',
 }));
 
 // Initialize Firebase
 initializeFirebase();
 
-// Initialize Queue Service
 const queueService = new QueueService();
-
-// Routes
 app.use('/api/jobs', createJobsRouter(queueService));
 
-// Health check endpoint
-app.get('/health', (req, res) => {
+app.get('/health', (_req, res) => {
+  const routes = getRoutes(app);
   res.status(StatusCodes.OK).json({
     status: 'healthy',
     timestamp: new Date().toISOString(),
     service: 'coGrader API',
+    endpoints: routes,
   });
 });
 
-// 404 handler
 app.use(notFoundHandler);
-
-// Error handler (must be last)
 app.use(errorHandler);
 
-// Start server
 const server = app.listen(config.port, () => {
   logger.info(`Server is running on port ${config.port}`);
   logger.info(`Environment: ${process.env.NODE_ENV || 'development'}`);
   logger.info(`Health check: http://localhost:${config.port}/health`);
 });
 
-// Graceful shutdown
 const gracefulShutdown = async () => {
-  logger.info('Received shutdown signal, closing gracefully...');
-
   server.close(async () => {
     logger.info('HTTP server closed');
-
     try {
       await queueService.close();
       logger.info('Queue service closed');
@@ -77,11 +67,10 @@ const gracefulShutdown = async () => {
     }
   });
 
-  // Force close after 10 seconds
   setTimeout(() => {
     logger.error('Forced shutdown after timeout');
     process.exit(1);
-  }, 10000);
+  }, TIMEOUT.GRACEFUL_SHUTDOWN);
 };
 
 process.on('SIGTERM', gracefulShutdown);
