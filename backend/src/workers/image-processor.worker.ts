@@ -4,28 +4,27 @@ import { createRedisConnection } from '../config/redis';
 import { config } from '../config/env';
 import { JobData } from '../types/job.types';
 import { ImageProcessingService } from '../services/image-processing.service';
-
-const QUEUE_NAME = 'imageProcessing';
+import { QUEUE } from '../constants';
 
 export class ImageProcessorWorker {
   private worker: Worker<JobData>;
   private imageProcessingService: ImageProcessingService;
 
-  constructor() {
-    this.imageProcessingService = new ImageProcessingService();
+  constructor(imageProcessingService?: ImageProcessingService) {
+    this.imageProcessingService = imageProcessingService || new ImageProcessingService();
 
     const connection = createRedisConnection();
 
     this.worker = new Worker<JobData>(
-      QUEUE_NAME,
+      QUEUE.NAME,
       async (job: Job<JobData>) => {
         return this.processJob(job);
       },
       {
         connection,
         concurrency: config.worker.concurrency,
-        removeOnComplete: { count: 100 },
-        removeOnFail: { count: 1000 },
+        removeOnComplete: { count: QUEUE.CLEANUP.COMPLETED_COUNT },
+        removeOnFail: { count: QUEUE.CLEANUP.FAILED_COUNT },
       }
     );
 
@@ -70,9 +69,5 @@ export class ImageProcessorWorker {
   async close(): Promise<void> {
     await this.worker.close();
     logger.info('Worker closed');
-  }
-
-  getWorker(): Worker<JobData> {
-    return this.worker;
   }
 }
