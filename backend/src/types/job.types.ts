@@ -18,13 +18,9 @@ export interface JobData {
   jobId: string;
 }
 
-export interface JobProgress {
-  percentage: number;
-  step: ProcessingStep;
-}
-
 export interface JobResult {
   jobId: string;
+  imageUrl?: string;
   status: JobStatus;
   progress: number;
   step?: ProcessingStep;
@@ -42,4 +38,16 @@ export interface CreateJobResponse {
   jobId: string;
   status: JobStatus;
   message: string;
+}
+
+export interface PaginatedResponse<T> {
+  data: T[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+    hasNextPage: boolean;
+    hasPrevPage: boolean;
+  };
 }
