@@ -4,57 +4,45 @@ import { logger } from '../config/logger';
 import { getStorage } from '../config/firebase';
 import { FirestoreService } from './firestore.service';
 import { JobStatus, ProcessingStep } from '../types/job.types';
+import { TIMEOUT, PROGRESS, IMAGE, STORAGE } from '../constants';
 
 export class ImageProcessingService {
   private firestoreService: FirestoreService;
 
-  constructor() {
-    this.firestoreService = new FirestoreService();
+  constructor(firestoreService?: FirestoreService) {
+    this.firestoreService = firestoreService || new FirestoreService();
   }
 
   async processImage(jobId: string, imageUrl: string): Promise<string> {
     try {
-      // Step 1: Download image
       await this.firestoreService.updateJobStatus(
         jobId,
         JobStatus.PROCESSING,
-        25,
+        PROGRESS.DOWNLOAD,
         ProcessingStep.DOWNLOAD
       );
-      logger.info('Downloading image', { jobId, imageUrl });
 
       const imageBuffer = await this.downloadImage(imageUrl);
-      logger.info('Image downloaded successfully', { jobId });
-
-      // Step 2: Transform image
       await this.firestoreService.updateJobStatus(
         jobId,
         JobStatus.PROCESSING,
-        50,
+        PROGRESS.TRANSFORM,
         ProcessingStep.TRANSFORM
       );
-      logger.info('Transforming image', { jobId });
 
       const processedBuffer = await this.transformImage(imageBuffer);
-      logger.info('Image transformed successfully', { jobId });
-
-      // Step 3: Upload to Firebase Storage
       await this.firestoreService.updateJobStatus(
         jobId,
         JobStatus.UPLOADING,
-        75,
+        PROGRESS.UPLOAD,
         ProcessingStep.UPLOAD
       );
-      logger.info('Uploading to Firebase Storage', { jobId });
 
       const resultUrl = await this.uploadToFirebase(jobId, processedBuffer);
-      logger.info('Image uploaded successfully', { jobId, resultUrl });
-
-      // Step 4: Complete
       await this.firestoreService.updateJobStatus(
         jobId,
         JobStatus.COMPLETED,
-        100,
+        PROGRESS.COMPLETE,
         ProcessingStep.COMPLETE,
         undefined,
         resultUrl
@@ -69,7 +57,7 @@ export class ImageProcessingService {
       await this.firestoreService.updateJobStatus(
         jobId,
         JobStatus.FAILED,
-        0,
+        PROGRESS.PENDING,
         undefined,
         errorMessage
       );
@@ -82,7 +70,7 @@ export class ImageProcessingService {
     try {
       const response = await axios.get(imageUrl, {
         responseType: 'arraybuffer',
-        timeout: 30000,
+        timeout: TIMEOUT.DOWNLOAD,
       });
 
       return Buffer.from(response.data);
@@ -93,29 +81,24 @@ export class ImageProcessingService {
 
   private async transformImage(imageBuffer: Buffer): Promise<Buffer> {
     try {
-      // Apply multiple transformations:
-      // 1. Resize to max 1200px width
-      // 2. Convert to grayscale
-      // 3. Add a watermark text
       const processedImage = await sharp(imageBuffer)
-        .resize(1200, null, {
+        .resize(IMAGE.MAX_WIDTH, null, {
           fit: 'inside',
           withoutEnlargement: true,
         })
         .grayscale()
-        .jpeg({ quality: 85 })
+        .jpeg({ quality: IMAGE.QUALITY })
         .toBuffer();
 
-      // Add watermark
       const watermarkedImage = await sharp(processedImage)
         .composite([
           {
             input: Buffer.from(
-              `<svg width="300" height="50">
+              `<svg width="${IMAGE.WATERMARK.WIDTH}" height="${IMAGE.WATERMARK.HEIGHT}">
                 <style>
-                  .watermark { fill: rgba(255, 255, 255, 0.5); font-size: 24px; font-family: Arial; }
+                  .watermark { fill: ${IMAGE.WATERMARK.COLOR}; font-size: ${IMAGE.WATERMARK.FONT_SIZE}px; font-family: Arial, sans-serif; font-weight: bold; }
                 </style>
-                <text x="10" y="35" class="watermark">Processed by coGrader</text>
+                <text x="10" y="35" class="watermark">${IMAGE.WATERMARK.TEXT}</text>
               </svg>`
             ),
             gravity: 'southeast',
@@ -132,12 +115,12 @@ export class ImageProcessingService {
   private async uploadToFirebase(jobId: string, imageBuffer: Buffer): Promise<string> {
     try {
       const bucket = getStorage().bucket();
-      const fileName = `processed/${jobId}.jpg`;
+      const fileName = `${STORAGE.PROCESSED_FOLDER}/${jobId}${STORAGE.FILE_EXTENSION}`;
       const file = bucket.file(fileName);
 
-      await file.save(imageBuffer, {
+      const uploadPromise = file.save(imageBuffer, {
         metadata: {
-          contentType: 'image/jpeg',
+          contentType: `image/${IMAGE.FORMAT}`,
           metadata: {
             jobId,
             processedAt: new Date().toISOString(),
@@ -145,10 +128,15 @@ export class ImageProcessingService {
         },
       });
 
-      // Make the file publicly accessible
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(() => {
+          reject(new Error('Upload timeout exceeded'));
+        }, TIMEOUT.UPLOAD);
+      });
+
+      await Promise.race([uploadPromise, timeoutPromise]);
       await file.makePublic();
 
-      // Get the public URL
       const publicUrl = `https://storage.googleapis.com/${bucket.name}/${fileName}`;
       return publicUrl;
     } catch (error) {

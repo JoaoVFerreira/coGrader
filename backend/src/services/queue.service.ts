@@ -2,8 +2,7 @@ import { Queue, QueueEvents } from 'bullmq';
 import { logger } from '../config/logger';
 import { createRedisConnection } from '../config/redis';
 import { JobData } from '../types/job.types';
-
-const QUEUE_NAME = 'imageProcessing';
+import { QUEUE } from '../constants';
 
 export class QueueService {
   private queue: Queue<JobData>;
@@ -12,26 +11,26 @@ export class QueueService {
   constructor() {
     const connection = createRedisConnection();
 
-    this.queue = new Queue<JobData>(QUEUE_NAME, {
+    this.queue = new Queue<JobData>(QUEUE.NAME, {
       connection,
       defaultJobOptions: {
-        attempts: 3,
+        attempts: QUEUE.RETRY_ATTEMPTS,
         backoff: {
           type: 'exponential',
-          delay: 2000,
+          delay: QUEUE.RETRY_DELAY,
         },
         removeOnComplete: {
-          count: 100,
-          age: 24 * 3600, // 24 hours
+          count: QUEUE.CLEANUP.COMPLETED_COUNT,
+          age: QUEUE.CLEANUP.COMPLETED_AGE,
         },
         removeOnFail: {
-          count: 1000,
-          age: 7 * 24 * 3600, // 7 days
+          count: QUEUE.CLEANUP.FAILED_COUNT,
+          age: QUEUE.CLEANUP.FAILED_AGE,
         },
       },
     });
 
-    this.queueEvents = new QueueEvents(QUEUE_NAME, { connection: createRedisConnection() });
+    this.queueEvents = new QueueEvents(QUEUE.NAME, { connection });
 
     logger.info('Queue service initialized');
   }
@@ -49,19 +48,6 @@ export class QueueService {
     );
 
     logger.info('Job added to queue', { jobId });
-  }
-
-  async getJobStatus(jobId: string) {
-    const job = await this.queue.getJob(jobId);
-    return job;
-  }
-
-  getQueue(): Queue<JobData> {
-    return this.queue;
-  }
-
-  getQueueEvents(): QueueEvents {
-    return this.queueEvents;
   }
 
   async close(): Promise<void> {
