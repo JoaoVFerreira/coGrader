@@ -43,7 +43,6 @@ export const errorHandler = (
     details: err.details,
   });
 
-  // Send error response
   res.status(statusCode).json({
     error: {
       code,
