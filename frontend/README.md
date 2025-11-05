@@ -1,118 +1,159 @@
-# coGraderApp
+# coGrader Frontend
 
-React + Vite frontend for the coGrader image processing application with real-time Firebase integration.
+Frontend application for coGrader - a modern, real-time image processing job management interface built with React, TypeScript, and Firebase.
 
 ## Features
 
-- Single page application with image URL submission form
-- Real-time job list with Firebase Firestore listeners (no polling)
-- Progress bars showing completion percentage for each job
-- Display of processed images when completed
-- Error messages for failed jobs
-- Responsive design
+- **Real-time Job Tracking** with Firebase Firestore listeners
+- **Job Submission** with URL validation
+- **Progress Monitoring** with visual progress bars
+- **Image Preview** for completed jobs
+- **Error Handling** with detailed error messages
+- **Responsive Design** for mobile and desktop
+- **Live Updates** without polling
 
 ## Tech Stack
 
-- React 18 with TypeScript
-- Vite for fast development and building
-- Firebase Firestore for real-time data
-- Firebase Storage for image URLs
+- **React 19** - UI library
+- **TypeScript** - Type safety
+- **Vite** - Build tool and dev server
+- **Firebase** - Real-time database and storage
+- **CSS3** - Styling
 
 ## Prerequisites
 
-- Node.js 18+ and npm
-- Backend server running (see `/backend` folder)
-- Firebase project configured
+- Node.js 18+
+- Firebase project with Firestore enabled
+- Backend API running (see backend README)
 
-## Setup
+## Installation
 
-1. Install dependencies:
+1. **Install dependencies:**
 ```bash
 npm install
 ```
 
-2. Configure environment variables:
-
-The `.env` file should already be created with the following variables:
+2. **Configure environment variables:**
+```bash
+cp .env.example .env
 ```
-VITE_FIREBASE_API_KEY=your_api_key
-VITE_FIREBASE_AUTH_DOMAIN=your_project.firebaseapp.com
-VITE_FIREBASE_PROJECT_ID=your_project_id
-VITE_FIREBASE_STORAGE_BUCKET=your_project.appspot.com
-VITE_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
-VITE_FIREBASE_APP_ID=your_app_id
+
+Edit `.env` with your Firebase and API configuration:
+```env
+VITE_FIREBASE_API_KEY=your-api-key
+VITE_FIREBASE_AUTH_DOMAIN=your-project-id.firebaseapp.com
+VITE_FIREBASE_PROJECT_ID=your-project-id
+VITE_FIREBASE_STORAGE_BUCKET=your-project-id.appspot.com
+VITE_FIREBASE_MESSAGING_SENDER_ID=your-sender-id
+VITE_FIREBASE_APP_ID=your-app-id
 VITE_API_URL=http://localhost:3000/api
 ```
 
-Update these values with your actual Firebase configuration.
-
 ## Running the Application
 
-Start the development server:
+### Development Mode
 ```bash
 npm run dev
 ```
+The app will be available at `http://localhost:5173`
 
-The application will be available at `http://localhost:5173` (default Vite port).
-
-## Building for Production
-
+### Build for Production
 ```bash
 npm run build
 ```
 
-The built files will be in the `dist` folder.
+### Preview Production Build
+```bash
+npm run preview
+```
 
-## Usage
+## Development
 
-1. Make sure the backend server is running (see backend README)
-2. Start the frontend development server
-3. Open the application in your browser
-4. Enter an image URL in the form (e.g., `https://picsum.photos/800/600`)
-5. Click "Process Image" to create a new job
-6. Watch the job list update in real-time as the image is processed
-7. See the processed image when the job completes
+### Type Checking
+```bash
+npx tsc --noEmit
+```
+
+### Linting
+```bash
+npm run lint
+```
 
 ## Project Structure
 
 ```
 frontend/
+├── public/
+│   └── dictionary.svg      # App icon
 ├── src/
-│   ├── components/
-│   │   ├── ImageForm.tsx      # Form for submitting image URLs
-│   │   ├── JobItem.tsx         # Individual job display with progress
-│   │   └── JobList.tsx         # Real-time job list with Firebase listener
-│   ├── config/
-│   │   ├── api.ts              # API client for backend communication
-│   │   └── firebase.ts         # Firebase configuration
-│   ├── types/
-│   │   └── job.ts              # TypeScript types for jobs
-│   ├── App.tsx                 # Main application component
-│   ├── App.css                 # Application styles
-│   └── main.tsx                # Entry point
-├── .env                        # Environment variables
-└── package.json
+│   ├── components/         # React components
+│   │   ├── ImageForm.tsx   # Job submission form
+│   │   ├── JobList.tsx     # Real-time job list
+│   │   └── JobItem.tsx     # Individual job display
+│   ├── config/             # Configuration
+│   │   ├── firebase.ts     # Firebase setup
+│   │   └── api.ts          # API client
+│   ├── types/              # TypeScript types
+│   │   └── job.ts          # Job type definitions
+│   ├── App.tsx             # Main app component
+│   ├── App.css             # App styles
+│   ├── index.css           # Global styles
+│   └── main.tsx            # App entry point
+├── .env.example            # Environment template
+├── index.html              # HTML entry point
+├── vite.config.ts          # Vite configuration
+├── tsconfig.json           # TypeScript config
+└── package.json            # Dependencies
 ```
 
-## Real-time Updates
+## Features Detail
 
-The application uses Firebase Firestore's `onSnapshot` listener to receive real-time updates about job status changes. This means:
+### Job Submission
+- Submit image URLs for processing
+- URL validation (must be valid HTTPS URL ending in .jpg, .jpeg, or .png)
+- Instant feedback on submission
 
-- No polling required
-- Instant updates when job status changes
-- Efficient bandwidth usage
-- Multiple users see the same updates in real-time
+### Real-time Updates
+- Jobs automatically update as they progress
+- No page refresh required
+- Firebase Firestore listeners for live data
 
-## Troubleshooting
+### Job Status Display
+Each job shows:
+- **Job ID** with copy functionality
+- **Original Image URL** with link
+- **Current Status** (pending, processing, completed, failed)
+- **Progress Bar** showing completion percentage
+- **Processing Time** for completed jobs
+- **Result Image** when job is complete
+- **Error Messages** if job fails
 
-- **"Failed to load jobs" error**: Check your Firebase configuration in `.env`
-- **Jobs not updating**: Verify backend is running and updating Firestore
-- **Cannot create jobs**: Check that `VITE_API_URL` points to your running backend
-- **CORS errors**: Ensure backend has CORS configured correctly
+### Job Statuses
+- 🟡 **Pending** - Job queued for processing
+- 🔵 **Processing** - Job is being processed
+- 🟢 **Completed** - Job finished successfully
+- 🔴 **Failed** - Job failed with error
 
-## Development
 
-The project uses:
-- TypeScript for type safety
-- ESLint for code quality
-- Vite's Fast Refresh for instant updates during development
+## Configuration
+
+### Firebase Setup
+1. Create a Firebase project at [Firebase Console](https://console.firebase.google.com)
+2. Enable Firestore Database
+3. Enable Firebase Storage
+4. Copy your Firebase config from Project Settings
+5. Add the config values to `.env`
+
+### Backend Connection
+Ensure the `VITE_API_URL` in `.env` points to your running backend API (default: `http://localhost:3000/api`)
+
+## Performance
+
+- Uses Firebase Firestore real-time listeners (no polling overhead)
+- Optimized React rendering with proper state management
+- Lazy loading of images
+- Efficient component updates
+
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details.

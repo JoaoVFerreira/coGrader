@@ -1,145 +1,288 @@
 # coGrader
 
-### Contexto
+A modern, scalable image processing service with real-time job tracking. coGrader allows users to submit image URLs for processing and monitor job progress in real-time through an intuitive web interface.
 
-O backend deve utilizar BullMQ para gerenciar tarefas de processamento de imagens. O processamento deve ser implementado em TypeScript com Express. O resultado do processamento deve ser enviado ao Firebase Storage, e o status do job deve ser atualizado em tempo real no Firestore. O frontend deve consultar esses dados para exibir o progresso ao usuário.
+## Overview
 
-### Objetivo
+coGrader is a full-stack application that processes images asynchronously with features like resizing, grayscale conversion, and watermarking. It uses a robust queue system for handling multiple concurrent jobs and provides real-time updates through Firebase Firestore.
 
-Implementar uma arquitetura backend com BullMQ utilizando TypeScript e Express para criação, execução e consulta de jobs de processamento de imagens, incluindo integração com Firebase.
+## Key Features
 
-### Requisitos Funcionais
+- 📤 **Image Processing** - Upload images via URL for automated processing
+- ⚡ **Real-time Updates** - Live job status tracking without polling
+- 🔄 **Queue Management** - Reliable job processing with BullMQ and Redis
+- 🎨 **Image Transformation** - Resize, grayscale, and watermark images
+- ☁️ **Cloud Storage** - Processed images stored in Firebase Storage
+- 🔒 **Security** - CORS protection and secure API endpoints
+- 📊 **Comprehensive Testing** - 106 tests covering all major features
+- 🚀 **Scalable Architecture** - Designed for high-volume processing
 
-1. Implementar o backend em TypeScript utilizando Express.
-2. Criar um job de processamento de imagem através de um endpoint REST.
-3. Processar a imagem em um worker BullMQ executado separadamente do servidor Express.
-4. Executar transformações na imagem (exemplo: resize, grayscale, watermark).
-5. Salvar a imagem processada no Firebase Storage.
-6. Atualizar o progresso e o status do job no Firestore a cada etapa do processamento.
-7. Permitir que o frontend consulte o status e o resultado final do job.
+## Architecture
 
-### Endpoints REST (Express + TypeScript)
+```
+┌─────────────────┐
+│   Frontend      │
+│  (React + TS)   │
+│   Port: 5173    │
+└────────┬────────┘
+         │ HTTP/REST
+         ↓
+┌─────────────────┐      ┌──────────────┐
+│   Backend API   │ ←────→ │   Firebase   │
+│  (Express + TS) │        │  Firestore   │
+│   Port: 3000    │        │   Storage    │
+└────────┬────────┘        └──────────────┘
+         │
+         ↓
+┌─────────────────┐      ┌──────────────┐
+│   Worker        │ ←────→ │    Redis     │
+│  (Job Processor)│        │   (Queue)    │
+└─────────────────┘        └──────────────┘
+```
 
-| Método | Rota            | Descrição                                                                         |
-| ------ | --------------- | --------------------------------------------------------------------------------- |
-| POST   | `/api/jobs`     | Cria um novo job de processamento de imagem. O body deve incluir a URL da imagem. |
-| GET    | `/api/jobs/:id` | Retorna o status atual do job (progresso, etapa, erro ou URL final).              |
-| GET    | `/api/jobs`     | Lista todos os jobs com seus status básicos.                                      |
+## Tech Stack
 
-### Especificação BullMQ
+### Frontend
+- **React 19** - Modern UI library
+- **TypeScript** - Type-safe JavaScript
+- **Vite** - Fast build tool
+- **Firebase SDK** - Real-time database integration
 
-#### Queue
+### Backend
+- **Node.js** - JavaScript runtime
+- **Express.js** - Web framework
+- **TypeScript** - Type safety
+- **BullMQ** - Job queue management
+- **Sharp** - High-performance image processing
+- **Firebase Admin SDK** - Cloud services
+- **Jest** - Testing framework
 
-* Nome da fila: `imageProcessing`
+### Infrastructure
+- **Redis** - Message broker and queue backend
+- **Firebase Firestore** - NoSQL database
+- **Firebase Storage** - File storage
+- **Winston** - Logging
 
-#### Worker
+## Project Structure
 
-* Executar jobs de forma concorrente
-* Para cada job, seguir rigorosamente as etapas:
+```
+coGrader/
+├── backend/              # Backend API and worker
+│   ├── src/
+│   │   ├── config/       # Configuration files
+│   │   ├── controllers/  # Request handlers
+│   │   ├── middlewares/  # Express middlewares
+│   │   ├── routes/       # API routes
+│   │   ├── services/     # Business logic
+│   │   ├── __tests__/    # Test suites
+│   │   ├── server.ts     # API server
+│   │   └── worker.ts     # Job processor
+│   └── README.md         # Backend documentation
+│
+├── frontend/             # React frontend
+│   ├── src/
+│   │   ├── components/   # React components
+│   │   ├── config/       # Configuration
+│   │   └── types/        # TypeScript types
+│   └── README.md         # Frontend documentation
+│
+├── LICENSE               # MIT License
+└── README.md             # This file
+```
 
-| Passo | Descrição                                                 | Atualização Firestore                |
-| ----- | --------------------------------------------------------- | ------------------------------------ |
-| 1     | Baixar a imagem da URL fornecida                          | status: processing (step: download)  |
-| 2     | Aplicar transformações na imagem                          | status: processing (step: transform) |
-| 3     | Fazer upload da imagem processada para o Firebase Storage | status: uploading                    |
-| 4     | Registrar a URL final no Firestore                        | status: completed                    |
+## Getting Started
 
-Se ocorrer falha em qualquer etapa:
+### Prerequisites
 
-* status: failed
-* incluir mensagem de erro no Firestore
+- Node.js 18 or higher
+- Redis 6 or higher
+- Firebase project with Firestore and Storage enabled
+- npm or yarn package manager
 
-### Persistência do Status
+### Quick Start
 
-Cada atualização no Firestore deve incluir:
+1. **Clone the repository**
+```bash
+git clone <repository-url>
+cd coGrader
+```
 
-* Status atual do workflow
-* Percentual de progresso
-* Etapa atual do processamento
-* Mensagem de erro quando houver falha
-* URL final gerada ao concluir o processo
+2. **Setup Backend**
+```bash
+cd backend
+npm install
+cp .env.example .env
+# Edit .env with your configuration
+npm run dev
+```
 
-### Resultado Esperado
+3. **Setup Worker** (in a new terminal)
+```bash
+cd backend
+npm run worker
+```
 
-Uma API funcional que permita:
+4. **Setup Frontend** (in a new terminal)
+```bash
+cd frontend
+npm install
+cp .env.example .env
+# Edit .env with your Firebase config
+npm run dev
+```
 
-* Criar jobs de processamento de imagens
-* Processar em segundo plano utilizando BullMQ
-* Atualizar e persistir status em tempo real no Firestore
-* Consultar status e resultado final via API
+5. **Access the application**
+- Frontend: http://localhost:5173
+- Backend API: http://localhost:3000
+- Health Check: http://localhost:3000/health
 
-Implementação obrigatória em:
+## Configuration
 
-* Linguagem: TypeScript
-* Framework: Express
-* Queue Manager: BullMQ
-* Storage e base de dados: Firebase Storage e Firestore
+### Backend Environment Variables
+```env
+PORT=3000
+FRONTEND_URL=http://localhost:5173
+REDIS_HOST=localhost
+REDIS_PORT=6379
+FIREBASE_PROJECT_ID=your-project-id
+FIREBASE_CLIENT_EMAIL=your-service-account-email
+FIREBASE_PRIVATE_KEY="your-private-key"
+FIREBASE_STORAGE_BUCKET=your-bucket-name
+WORKER_CONCURRENCY=5
+```
 
+### Frontend Environment Variables
+```env
+VITE_FIREBASE_API_KEY=your-api-key
+VITE_FIREBASE_PROJECT_ID=your-project-id
+VITE_FIREBASE_STORAGE_BUCKET=your-bucket-name
+VITE_API_URL=http://localhost:3000/api
+```
 
-  Resumo da Implementação
+## API Endpoints
 
-  Implementei uma arquitetura completa de backend com BullMQ para processamento de imagens conforme especificado. Aqui está o que foi criado:
+### Create Job
+```http
+POST /api/jobs
+Content-Type: application/json
 
-  Estrutura do Projeto
+{
+  "imageUrl": "https://example.com/image.jpg"
+}
+```
 
-  backend/
-  ├── src/
-  │   ├── config/          # Configurações (Firebase, Redis, Env)
-  │   ├── controllers/     # Controladores Express
-  │   ├── routes/          # Rotas da API
-  │   ├── services/        # Lógica de negócio
-  │   ├── types/           # Tipos TypeScript
-  │   ├── workers/         # Worker BullMQ
-  │   ├── server.ts        # Entry point API
-  │   └── worker.ts        # Entry point Worker
-  ├── SETUP.md             # Guia completo de setup
-  ├── API_EXAMPLES.md      # Exemplos de uso da API
-  ├── package.json
-  ├── tsconfig.json
-  └── .env.example
+### Get Job Status
+```http
+GET /api/jobs/:id
+```
 
-  Funcionalidades Implementadas
+### List All Jobs
+```http
+GET /api/jobs?page=1&limit=10
+```
 
-  API REST (Express):
-  - POST /api/jobs - Cria novo job de processamento
-  - GET /api/jobs/:id - Consulta status do job
-  - GET /api/jobs - Lista todos os jobs
-  - GET /health - Health check
+### Health Check
+```http
+GET /health
+```
 
-  Processamento de Imagens (Worker):
-  1. Download (25%) - Baixa imagem da URL
-  2. Transform (50%) - Aplica resize, grayscale e watermark
-  3. Upload (75%) - Envia para Firebase Storage
-  4. Complete (100%) - Atualiza Firestore com URL final
+## Testing
 
-  Integrações:
-  - BullMQ para fila de jobs com Redis
-  - Firebase Storage para armazenar imagens processadas
-  - Firestore para persistir status dos jobs em tempo real
-  - Sharp para processamento de imagens
+The project includes comprehensive test coverage:
 
-  Próximos Passos
+### Backend Tests
+```bash
+cd backend
+npm test                  # Run all tests
+npm run test:coverage     # With coverage report
+```
 
-  1. Instalar dependências:
-  npm install
-  2. Configurar ambiente:
-    - Copie .env.example para .env
-    - Configure credenciais do Firebase
-    - Configure Redis (localhost ou Docker)
-  3. Rodar o projeto:
-  # Terminal 1 - API Server
-  npm run dev
+**Test Coverage:**
+- ✅ Unit tests for all services
+- ✅ Integration tests for API endpoints
+- ✅ Concurrent job processing (5, 10, 50, 100 jobs)
+- ✅ Redis failure recovery and reconnection
+- ✅ Image processing (PNG, JPG, large files >10MB)
+- ✅ Error handling (404, invalid URLs, timeouts)
 
-  # Terminal 2 - Worker
-  npm run dev:worker
-  4. Testar a API:
-  curl -X POST http://localhost:3000/api/jobs \
-    -H "Content-Type: application/json" \
-    -d '{"imageUrl": "https://picsum.photos/1600/900"}'
+**106 tests passing** across 12 test suites
 
-  Documentação Completa
+## How It Works
 
-  - SETUP.md - Guia detalhado de instalação e configuração
-  - API_EXAMPLES.md - Exemplos práticos de uso da API com cURL, Fetch e Axios
+1. **Job Submission**
+   - User submits an image URL through the frontend
+   - Frontend validates the URL and sends to backend API
+   - Backend creates a job in Firestore and adds to Redis queue
 
-  Todos os requisitos especificados foram implementados com TypeScript, Express, BullMQ e Firebase!
+2. **Job Processing**
+   - Worker picks up job from Redis queue
+   - Downloads image from provided URL
+   - Processes image (resize, grayscale, watermark)
+   - Uploads processed image to Firebase Storage
+   - Updates job status in Firestore
+
+3. **Real-time Updates**
+   - Frontend listens to Firestore for changes
+   - UI automatically updates when job status changes
+   - No polling required - uses Firebase real-time listeners
+
+## Image Processing Pipeline
+
+```
+Input Image (URL)
+      ↓
+Download Image
+      ↓
+Validate Format (PNG/JPG)
+      ↓
+Resize (max 1920px width)
+      ↓
+Convert to Grayscale
+      ↓
+Add Watermark
+      ↓
+Upload to Storage
+      ↓
+Return Result URL
+```
+
+## Deployment
+
+### Backend Deployment
+- Can be deployed to any Node.js hosting platform
+- Requires Redis instance (Redis Cloud, AWS ElastiCache, etc.)
+- Requires Firebase project
+- Configure environment variables on hosting platform
+
+### Frontend Deployment
+- Can be deployed to static hosting (Vercel, Netlify, Firebase Hosting)
+- Build with `npm run build`
+- Configure environment variables for production
+
+## Performance
+
+- **Concurrent Processing**: Handles up to 5 jobs simultaneously (configurable)
+- **Queue System**: BullMQ ensures reliable job processing
+- **Scalability**: Can scale horizontally by adding more workers
+- **Efficient Processing**: Sharp library for fast image transformations
+- **Real-time**: Firebase listeners eliminate polling overhead
+
+## Security
+
+- **CORS Protection**: Backend only accepts requests from configured frontend
+- **Input Validation**: Zod schemas for all API inputs
+- **Helmet**: Security headers for Express
+- **Error Handling**: Graceful error handling without exposing internals
+- **Type Safety**: TypeScript for compile-time error catching
+
+## Contributing
+
+Contributions are welcome! Please ensure:
+- All tests pass (`npm test`)
+- Code follows existing style
+- New features include tests
+- Documentation is updated
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
